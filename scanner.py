@@ -7,6 +7,8 @@ sistemlerinizde veya açıkça izin verilen hedeflerde kullanın.
 import argparse
 import socket
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 def parse_args(argv=None):
@@ -32,6 +34,13 @@ def parse_args(argv=None):
         type=float,
         default=0.2,
         help="Bağlantı zaman aşımı, saniye (varsayılan: 0.2)",
+    )
+    parser.add_argument(
+        "-j",
+        "--workers",
+        type=int,
+        default=100,
+        help="Eşzamanlı tarama sayısı (varsayılan: 100)",
     )
     return parser.parse_args(argv)
 
@@ -66,6 +75,21 @@ def scan_port(target, port, timeout=0.2):
         return sock.connect_ex((target, port)) == 0
 
 
+def scan_ports(target, ports, timeout=0.2, workers=100):
+    """Portları paralel olarak tarar ve açık olanların sıralı listesini döner."""
+    open_ports = []
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        futures = {
+            pool.submit(scan_port, target, port, timeout): port for port in ports
+        }
+        for future in as_completed(futures):
+            if future.result():
+                open_ports.append(futures[future])
+
+    return sorted(open_ports)
+
+
 def main(argv=None):
     args = parse_args(argv)
 
@@ -77,13 +101,16 @@ def main(argv=None):
         print(f"[-] {exc}", file=sys.stderr)
         return 2
 
-    print(f"\n[*] Tarama başlıyor: {target}\n")
+    print(f"\n[*] Tarama başlıyor: {target} ({len(ports)} port, {args.workers} iş parçacığı)\n")
 
-    for port in ports:
-        if scan_port(target, port, args.timeout):
-            print(f"[+] Port {port} OPEN")
+    started = time.perf_counter()
+    open_ports = scan_ports(target, ports, args.timeout, args.workers)
+    elapsed = time.perf_counter() - started
 
-    print("\n[*] Tarama tamamlandı.")
+    for port in open_ports:
+        print(f"[+] Port {port} OPEN")
+
+    print(f"\n[*] Tarama tamamlandı. {len(open_ports)} açık port, {elapsed:.2f} saniye.")
     return 0
 
 
