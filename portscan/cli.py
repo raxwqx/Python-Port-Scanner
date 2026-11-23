@@ -5,12 +5,34 @@ import logging
 import time
 
 from .banner import grab_banner
-from .core import parse_ports, scan_ports
+from .core import parse_ports, resolve_target, scan_ports
 from .log import setup_logging
 from .output import make_result, render_text, to_csv, to_json
 from .services import service_name
 
 log = logging.getLogger("portscan")
+
+
+def positive_float(value):
+    """Pozitif ondalık sayı doğrulayıcı (argparse type)."""
+    try:
+        number = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Geçersiz sayı: {value}") from None
+    if number <= 0:
+        raise argparse.ArgumentTypeError("Değer 0'dan büyük olmalı")
+    return number
+
+
+def positive_int(value):
+    """Pozitif tam sayı doğrulayıcı (argparse type)."""
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Geçersiz sayı: {value}") from None
+    if number < 1:
+        raise argparse.ArgumentTypeError("Değer en az 1 olmalı")
+    return number
 
 
 def build_parser():
@@ -33,14 +55,14 @@ def build_parser():
     parser.add_argument(
         "-t",
         "--timeout",
-        type=float,
+        type=positive_float,
         default=0.2,
         help="Bağlantı zaman aşımı, saniye (varsayılan: 0.2)",
     )
     parser.add_argument(
         "-j",
         "--workers",
-        type=int,
+        type=positive_int,
         default=100,
         help="Eşzamanlı tarama sayısı (varsayılan: 100)",
     )
@@ -104,7 +126,7 @@ def write_output(text, output_path):
             handle.write(text.rstrip("\n") + "\n")
         log.info(f"Sonuçlar yazıldı: {output_path}")
     else:
-        print(text)
+        print(text, flush=True)
 
 
 def main(argv=None):
@@ -119,7 +141,20 @@ def main(argv=None):
         log.error(str(exc))
         return 2
 
-    log.debug(f"Hedef: {target}, port sayısı: {len(ports)}")
+    if not ports:
+        log.error("Taranacak port bulunamadı")
+        return 2
+
+    try:
+        address = resolve_target(target)
+    except ValueError as exc:
+        log.error(str(exc))
+        return 2
+
+    if address != target:
+        log.info(f"Çözümlenen adres: {address}")
+
+    log.debug(f"Hedef: {address}, port sayısı: {len(ports)}")
 
     if args.format == "text":
         log.info("")
@@ -130,12 +165,16 @@ def main(argv=None):
         log.info("")
 
     started = time.perf_counter()
-    open_ports = scan_ports(target, ports, args.timeout, args.workers)
+    try:
+        open_ports = scan_ports(address, ports, args.timeout, args.workers)
+    except KeyboardInterrupt:
+        log.warning("Tarama kullanıcı tarafından durduruldu.")
+        return 130
     elapsed = time.perf_counter() - started
 
     log.debug(f"Tarama {elapsed:.2f} saniyede bitti")
 
-    results = collect_results(target, open_ports, args)
+    results = collect_results(address, open_ports, args)
 
     if args.format == "json":
         write_output(to_json(target, results), args.output)

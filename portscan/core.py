@@ -1,7 +1,16 @@
-"""Tarama çekirdeği: port ayrıştırma ve TCP bağlantı denemeleri."""
+"""Tarama çekirdeği: hedef çözümleme, port ayrıştırma ve TCP denemeleri."""
 
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+def resolve_target(target):
+    """Hedefi IPv4 adresine çözer; çözülemezse ValueError fırlatır."""
+    try:
+        return socket.gethostbyname(target)
+    except socket.gaierror as exc:
+        detail = exc.strerror or str(exc)
+        raise ValueError(f"Hedef çözümlenemedi: {target} ({detail})") from exc
 
 
 def parse_ports(spec):
@@ -12,13 +21,19 @@ def parse_ports(spec):
         if not part:
             continue
         if "-" in part:
-            start, end = part.split("-", 1)
-            start, end = int(start), int(end)
+            start_text, end_text = part.split("-", 1)
+            try:
+                start, end = int(start_text), int(end_text)
+            except ValueError:
+                raise ValueError(f"Geçersiz port tanımı: {part}") from None
             if start > end:
                 raise ValueError(f"Geçersiz port aralığı: {part}")
             ports.update(range(start, end + 1))
         else:
-            ports.add(int(part))
+            try:
+                ports.add(int(part))
+            except ValueError:
+                raise ValueError(f"Geçersiz port tanımı: {part}") from None
 
     for port in ports:
         if not 1 <= port <= 65535:
@@ -28,10 +43,17 @@ def parse_ports(spec):
 
 
 def scan_port(target, port, timeout=0.2):
-    """Tek bir TCP portuna bağlanmayı dener; açıksa True döner."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        return sock.connect_ex((target, port)) == 0
+    """Tek bir TCP portuna bağlanmayı dener; açıksa True döner.
+
+    Soket hataları (izin, ağ erişimi, zaman aşımı) "kapalı" olarak
+    değerlendirilir; tarama tek bir port yüzünden durmaz.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            return sock.connect_ex((target, port)) == 0
+    except OSError:
+        return False
 
 
 def scan_ports(target, ports, timeout=0.2, workers=100):
