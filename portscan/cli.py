@@ -5,6 +5,7 @@ import sys
 import time
 
 from .core import parse_ports, scan_ports
+from .services import service_name
 
 
 def build_parser():
@@ -38,6 +39,11 @@ def build_parser():
         default=100,
         help="Eşzamanlı tarama sayısı (varsayılan: 100)",
     )
+    parser.add_argument(
+        "--no-service",
+        action="store_true",
+        help="Portlar için servis adı çözümlemesini kapat",
+    )
     return parser
 
 
@@ -67,7 +73,9 @@ def main(argv=None):
     elapsed = time.perf_counter() - started
 
     for port in open_ports:
-        print(f"[+] Port {port} OPEN")
+        name = None if args.no_service else service_name(port)
+        suffix = f"  {name}" if name else ""
+        print(f"[+] Port {port}/tcp OPEN{suffix}")
 
     print(
         f"\n[*] Tarama tamamlandı. "
