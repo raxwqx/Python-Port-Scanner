@@ -27,3 +27,7 @@ dev = ["pytest>=7"]
 
 [tool.setuptools]
 packages = ["portscan"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
