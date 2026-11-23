@@ -1,0 +1,42 @@
+name: Özellik isteği
+description: Yeni bir özellik veya iyileştirme öner
+title: "[Özellik]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Öneriniz için teşekkürler! Lütfen kullanım durumunu da anlatın.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Hangi sorunu çözüyor?
+      description: Örneğin "UDP taraması yapamıyorum, bu yüzden ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Önerilen çözüm
+      description: Nasıl çalışmasını beklediğinizi, varsa komut satırı örneğiyle anlatın.
+      placeholder: |
+        python3 -m portscan --udp -p 53,123 127.0.0.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Değerlendirdiğiniz alternatifler
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Kapsam
+      options:
+        - label: Bu özellik yalnızca eğitim/izin verilen ortamlarda kullanılacak
+          required: true
