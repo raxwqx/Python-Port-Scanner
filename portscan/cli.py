@@ -1,13 +1,16 @@
 """Komut satırı arayüzü."""
 
 import argparse
-import sys
+import logging
 import time
 
 from .banner import grab_banner
 from .core import parse_ports, scan_ports
+from .log import setup_logging
 from .output import make_result, render_text, to_csv, to_json
 from .services import service_name
+
+log = logging.getLogger("portscan")
 
 
 def build_parser():
@@ -64,6 +67,12 @@ def build_parser():
         metavar="DOSYA",
         help="Sonuçları dosyaya yaz ('-' standart çıktı)",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Ayrıntılı günlük çıktısı",
+    )
     return parser
 
 
@@ -93,31 +102,38 @@ def write_output(text, output_path):
     if output_path and output_path != "-":
         with open(output_path, "w", encoding="utf-8") as handle:
             handle.write(text.rstrip("\n") + "\n")
-        print(f"[*] Sonuçlar yazıldı: {output_path}", file=sys.stderr)
+        log.info(f"Sonuçlar yazıldı: {output_path}")
     else:
         print(text)
 
 
 def main(argv=None):
     args = parse_args(argv)
+    setup_logging(args.verbose)
 
     target = args.target or input("Hedef IP adresi: ").strip()
 
     try:
         ports = parse_ports(args.ports)
     except ValueError as exc:
-        print(f"[-] {exc}", file=sys.stderr)
+        log.error(str(exc))
         return 2
 
+    log.debug(f"Hedef: {target}, port sayısı: {len(ports)}")
+
     if args.format == "text":
-        print(
-            f"\n[*] Tarama başlıyor: {target} "
-            f"({len(ports)} port, {args.workers} iş parçacığı)\n"
+        log.info("")
+        log.info(
+            f"Tarama başlıyor: {target} "
+            f"({len(ports)} port, {args.workers} iş parçacığı)"
         )
+        log.info("")
 
     started = time.perf_counter()
     open_ports = scan_ports(target, ports, args.timeout, args.workers)
     elapsed = time.perf_counter() - started
+
+    log.debug(f"Tarama {elapsed:.2f} saniyede bitti")
 
     results = collect_results(target, open_ports, args)
 
@@ -129,8 +145,9 @@ def main(argv=None):
         body = render_text(results)
         if body:
             write_output(body, args.output)
-        print(
-            f"\n[*] Tarama tamamlandı. "
+        log.info("")
+        log.info(
+            f"Tarama tamamlandı. "
             f"{len(open_ports)} açık port, {elapsed:.2f} saniye."
         )
 
