@@ -33,6 +33,19 @@ jobs:
       - name: Testleri çalıştır
         run: python -m pytest
 
+  docker:
+    name: Docker imajı
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: İmajı derle
+        run: docker build -t portscan:test .
+
+      - name: İmajı çalıştır
+        run: docker run --rm portscan:test --version
+
   smoke:
     name: CLI duman testi
     runs-on: ubuntu-24.04
