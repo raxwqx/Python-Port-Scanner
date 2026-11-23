@@ -6,6 +6,7 @@ import time
 
 from .banner import grab_banner
 from .core import parse_ports, scan_ports
+from .output import make_result, render_text, to_csv, to_json
 from .services import service_name
 
 
@@ -50,12 +51,51 @@ def build_parser():
         action="store_true",
         help="Portlar için servis adı çözümlemesini kapat",
     )
+    parser.add_argument(
+        "-f",
+        "--format",
+        choices=["text", "json", "csv"],
+        default="text",
+        help="Çıktı biçimi (varsayılan: text)",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        metavar="DOSYA",
+        help="Sonuçları dosyaya yaz ('-' standart çıktı)",
+    )
     return parser
 
 
 def parse_args(argv=None):
     """Komut satırı argümanlarını ayrıştırır."""
     return build_parser().parse_args(argv)
+
+
+def collect_results(target, open_ports, args):
+    """Açık portları servis/banner bilgisiyle sonuç kayıtlarına dönüştürür."""
+    results = []
+    for port in open_ports:
+        service = None if args.no_service else service_name(port)
+
+        banner = None
+        if args.banner:
+            raw = grab_banner(target, port, timeout=max(args.timeout, 1.0))
+            if raw:
+                banner = raw.splitlines()[0][:120]
+
+        results.append(make_result(port, service, banner))
+    return results
+
+
+def write_output(text, output_path):
+    """Üretilen çıktıyı dosyaya veya standart çıktıya yazar."""
+    if output_path and output_path != "-":
+        with open(output_path, "w", encoding="utf-8") as handle:
+            handle.write(text.rstrip("\n") + "\n")
+        print(f"[*] Sonuçlar yazıldı: {output_path}", file=sys.stderr)
+    else:
+        print(text)
 
 
 def main(argv=None):
@@ -69,28 +109,29 @@ def main(argv=None):
         print(f"[-] {exc}", file=sys.stderr)
         return 2
 
-    print(
-        f"\n[*] Tarama başlıyor: {target} "
-        f"({len(ports)} port, {args.workers} iş parçacığı)\n"
-    )
+    if args.format == "text":
+        print(
+            f"\n[*] Tarama başlıyor: {target} "
+            f"({len(ports)} port, {args.workers} iş parçacığı)\n"
+        )
 
     started = time.perf_counter()
     open_ports = scan_ports(target, ports, args.timeout, args.workers)
     elapsed = time.perf_counter() - started
 
-    for port in open_ports:
-        name = None if args.no_service else service_name(port)
-        suffix = f"  {name}" if name else ""
-        print(f"[+] Port {port}/tcp OPEN{suffix}")
+    results = collect_results(target, open_ports, args)
 
-        if args.banner:
-            banner = grab_banner(target, port, timeout=max(args.timeout, 1.0))
-            if banner:
-                first_line = banner.splitlines()[0][:120]
-                print(f"    banner: {first_line}")
+    if args.format == "json":
+        write_output(to_json(target, results), args.output)
+    elif args.format == "csv":
+        write_output(to_csv(results), args.output)
+    else:
+        body = render_text(results)
+        if body:
+            write_output(body, args.output)
+        print(
+            f"\n[*] Tarama tamamlandı. "
+            f"{len(open_ports)} açık port, {elapsed:.2f} saniye."
+        )
 
-    print(
-        f"\n[*] Tarama tamamlandı. "
-        f"{len(open_ports)} açık port, {elapsed:.2f} saniye."
-    )
     return 0
