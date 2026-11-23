@@ -1,0 +1,67 @@
+name: Hata bildirimi
+description: Beklenmeyen bir davranışı bildir
+title: "[Hata]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bildirim için teşekkürler! Lütfen aşağıdaki alanları doldurun.
+        **Güvenlik açığı** bildirecekseniz lütfen herkese açık issue açmayın.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Ne oldu?
+      description: Beklenen ve gerçekleşen davranışı kısaca anlatın.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Yeniden üretme adımları
+      placeholder: |
+        1. python3 -m portscan -p 1-1024 127.0.0.1
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Sürüm
+      description: "`portscan --version` çıktısı"
+      placeholder: portscan 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python sürümü
+      placeholder: "3.12.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: İşletim sistemi
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - WSL
+        - Diğer
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Günlük çıktısı
+      description: "`-v` ile alınan çıktı"
+      render: shell
+    validations:
+      required: false
