@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Sanal ortamlar
+.venv/
+venv/
+env/
+
+# Test / araç çıktıları
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Editörler
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Tarama çıktıları
+*.json
+*.csv

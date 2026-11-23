@@ -4,6 +4,7 @@ import argparse
 import sys
 import time
 
+from .banner import grab_banner
 from .core import parse_ports, scan_ports
 from .services import service_name
 
@@ -38,6 +39,11 @@ def build_parser():
         type=int,
         default=100,
         help="Eşzamanlı tarama sayısı (varsayılan: 100)",
+    )
+    parser.add_argument(
+        "--banner",
+        action="store_true",
+        help="Açık portlardan banner (servis imzası) okumayı dene",
     )
     parser.add_argument(
         "--no-service",
@@ -76,6 +82,12 @@ def main(argv=None):
         name = None if args.no_service else service_name(port)
         suffix = f"  {name}" if name else ""
         print(f"[+] Port {port}/tcp OPEN{suffix}")
+
+        if args.banner:
+            banner = grab_banner(target, port, timeout=max(args.timeout, 1.0))
+            if banner:
+                first_line = banner.splitlines()[0][:120]
+                print(f"    banner: {first_line}")
 
     print(
         f"\n[*] Tarama tamamlandı. "
