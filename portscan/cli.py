@@ -8,6 +8,7 @@ from .banner import grab_banner
 from .core import parse_ports, resolve_target, scan_ports
 from .log import setup_logging
 from .output import make_result, render_text, to_csv, to_json
+from .presets import PRESETS, describe_presets, get_preset
 from .services import service_name
 
 log = logging.getLogger("portscan")
@@ -46,11 +47,21 @@ def build_parser():
         nargs="?",
         help="Hedef IP adresi veya alan adı (verilmezse sorulur)",
     )
-    parser.add_argument(
+    port_group = parser.add_mutually_exclusive_group()
+    port_group.add_argument(
         "-p",
         "--ports",
-        default="1-1024",
         help="Port aralığı: '1-1024', '22,80,443' veya '1-100,8080' (varsayılan: 1-1024)",
+    )
+    port_group.add_argument(
+        "--preset",
+        choices=sorted(PRESETS),
+        help="Hazır port listesi kullan (--list-presets ile listele)",
+    )
+    parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="Hazır port listelerini göster ve çık",
     )
     parser.add_argument(
         "-t",
@@ -133,13 +144,21 @@ def main(argv=None):
     args = parse_args(argv)
     setup_logging(args.verbose)
 
+    if args.list_presets:
+        for name, count in describe_presets().items():
+            print(f"{name:<8} {count:>3} port")
+        return 0
+
     target = args.target or input("Hedef IP adresi: ").strip()
 
-    try:
-        ports = parse_ports(args.ports)
-    except ValueError as exc:
-        log.error(str(exc))
-        return 2
+    if args.preset:
+        ports = get_preset(args.preset)
+    else:
+        try:
+            ports = parse_ports(args.ports or "1-1024")
+        except ValueError as exc:
+            log.error(str(exc))
+            return 2
 
     if not ports:
         log.error("Taranacak port bulunamadı")
