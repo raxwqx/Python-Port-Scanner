@@ -56,9 +56,15 @@ def scan_port(target, port, timeout=0.2):
         return False
 
 
-def scan_ports(target, ports, timeout=0.2, workers=100):
-    """Portları paralel olarak tarar ve açık olanların sıralı listesini döner."""
+def scan_ports(target, ports, timeout=0.2, workers=100, on_progress=None):
+    """Portları paralel olarak tarar ve açık olanların sıralı listesini döner.
+
+    `on_progress(done, total)` verilirse her 50 portta bir ve tarama
+    sonunda çağrılır.
+    """
     open_ports = []
+    total = len(ports)
+    done = 0
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {
@@ -67,5 +73,9 @@ def scan_ports(target, ports, timeout=0.2, workers=100):
         for future in as_completed(futures):
             if future.result():
                 open_ports.append(futures[future])
+
+            done += 1
+            if on_progress is not None and (done == total or done % 50 == 0):
+                on_progress(done, total)
 
     return sorted(open_ports)
