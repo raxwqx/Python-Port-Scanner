@@ -2,8 +2,10 @@
 
 import argparse
 import logging
+import sys
 import time
 
+from . import __version__
 from .banner import grab_banner
 from .core import parse_ports, resolve_target, scan_ports
 from .log import setup_logging
@@ -34,6 +36,25 @@ def positive_int(value):
     if number < 1:
         raise argparse.ArgumentTypeError("Değer en az 1 olmalı")
     return number
+
+
+def make_progress(enabled):
+    """İlerleme göstergesi için callback üretir; gerekmiyorsa None."""
+    if not enabled:
+        return None
+
+    def report(done, total):
+        percent = int(done * 100 / total)
+        print(
+            f"\r[*] {done}/{total} port (%{percent})",
+            end="",
+            file=sys.stderr,
+            flush=True,
+        )
+        if done == total:
+            print("\r" + " " * 40 + "\r", end="", file=sys.stderr, flush=True)
+
+    return report
 
 
 def build_parser():
@@ -100,11 +121,24 @@ def build_parser():
         metavar="DOSYA",
         help="Sonuçları dosyaya yaz ('-' standart çıktı)",
     )
-    parser.add_argument(
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Ayrıntılı günlük çıktısı",
+    )
+    verbosity.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Durum mesajlarını gizle, yalnızca sonuçları göster",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     return parser
 
@@ -142,7 +176,7 @@ def write_output(text, output_path):
 
 def main(argv=None):
     args = parse_args(argv)
-    setup_logging(args.verbose)
+    setup_logging(args.verbose, args.quiet)
 
     if args.list_presets:
         for name, count in describe_presets().items():
@@ -183,9 +217,13 @@ def main(argv=None):
         )
         log.info("")
 
+    progress = make_progress(not args.quiet and sys.stderr.isatty())
+
     started = time.perf_counter()
     try:
-        open_ports = scan_ports(address, ports, args.timeout, args.workers)
+        open_ports = scan_ports(
+            address, ports, args.timeout, args.workers, progress
+        )
     except KeyboardInterrupt:
         log.warning("Tarama kullanıcı tarafından durduruldu.")
         return 130

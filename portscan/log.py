@@ -28,10 +28,18 @@ class PrefixFormatter(logging.Formatter):
         return f"{prefix} {message}"
 
 
-def setup_logging(verbose=False):
+def setup_logging(verbose=False, quiet=False):
     """`portscan` günlükleyicisini yapılandırıp döner."""
     logger = logging.getLogger("portscan")
-    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+    if quiet:
+        level = logging.WARNING
+    elif verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logger.setLevel(level)
     logger.handlers.clear()
 
     handler = logging.StreamHandler(sys.stderr)
