@@ -28,6 +28,12 @@ def test_render_text_without_service_or_banner():
     assert render_text([make_result(9999)]) == "[+] Port 9999/tcp OPEN"
 
 
+def test_render_text_uses_result_state_and_proto():
+    results = [make_result(53, "domain", proto="udp", state="open|filtered")]
+
+    assert render_text(results) == "[+] Port 53/udp OPEN|FILTERED  domain"
+
+
 def test_render_text_empty():
     assert render_text([]) == ""
 

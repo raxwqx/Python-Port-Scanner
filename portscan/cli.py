@@ -7,7 +7,12 @@ import time
 
 from . import __version__
 from .banner import grab_banner
-from .core import parse_ports, resolve_target, scan_ports
+from .core import (
+    parse_ports,
+    resolve_target,
+    scan_ports,
+    scan_udp_ports,
+)
 from .log import setup_logging
 from .output import make_result, render_text, to_csv, to_json
 from .presets import PRESETS, describe_presets, get_preset
@@ -99,6 +104,11 @@ def build_parser():
         help="Eşzamanlı tarama sayısı (varsayılan: 100)",
     )
     parser.add_argument(
+        "--udp",
+        action="store_true",
+        help="TCP yerine UDP tara (yavaş ve kesin değil)",
+    )
+    parser.add_argument(
         "--banner",
         action="store_true",
         help="Açık portlardan banner (servis imzası) okumayı dene",
@@ -149,7 +159,7 @@ def parse_args(argv=None):
 
 
 def collect_results(target, open_ports, args):
-    """Açık portları servis/banner bilgisiyle sonuç kayıtlarına dönüştürür."""
+    """TCP sonuçlarını servis/banner bilgisiyle kayıtlara dönüştürür."""
     results = []
     for port in open_ports:
         service = None if args.no_service else service_name(port)
@@ -161,6 +171,15 @@ def collect_results(target, open_ports, args):
                 banner = raw.splitlines()[0][:120]
 
         results.append(make_result(port, service, banner))
+    return results
+
+
+def collect_udp_results(target, udp_ports, args):
+    """UDP sonuçlarını kayıtlara dönüştürür."""
+    results = []
+    for port, state in udp_ports:
+        service = None if args.no_service else service_name(port, "udp")
+        results.append(make_result(port, service, proto="udp", state=state))
     return results
 
 
@@ -182,6 +201,10 @@ def main(argv=None):
         for name, count in describe_presets().items():
             print(f"{name:<8} {count:>3} port")
         return 0
+
+    if args.udp and args.banner:
+        log.warning("UDP taramasında banner okuma desteklenmiyor, yok sayıldı.")
+        args.banner = False
 
     target = args.target or input("Hedef IP adresi: ").strip()
 
@@ -209,10 +232,12 @@ def main(argv=None):
 
     log.debug(f"Hedef: {address}, port sayısı: {len(ports)}")
 
+    protocol = "UDP" if args.udp else "TCP"
+
     if args.format == "text":
         log.info("")
         log.info(
-            f"Tarama başlıyor: {target} "
+            f"Tarama başlıyor: {target} [{protocol}] "
             f"({len(ports)} port, {args.workers} iş parçacığı)"
         )
         log.info("")
@@ -221,9 +246,14 @@ def main(argv=None):
 
     started = time.perf_counter()
     try:
-        open_ports = scan_ports(
-            address, ports, args.timeout, args.workers, progress
-        )
+        if args.udp:
+            found = scan_udp_ports(
+                address, ports, max(args.timeout, 0.5), args.workers, progress
+            )
+        else:
+            found = scan_ports(
+                address, ports, args.timeout, args.workers, progress
+            )
     except KeyboardInterrupt:
         log.warning("Tarama kullanıcı tarafından durduruldu.")
         return 130
@@ -231,7 +261,10 @@ def main(argv=None):
 
     log.debug(f"Tarama {elapsed:.2f} saniyede bitti")
 
-    results = collect_results(address, open_ports, args)
+    if args.udp:
+        results = collect_udp_results(address, found, args)
+    else:
+        results = collect_results(address, found, args)
 
     if args.format == "json":
         write_output(to_json(target, results), args.output)
@@ -244,7 +277,7 @@ def main(argv=None):
         log.info("")
         log.info(
             f"Tarama tamamlandı. "
-            f"{len(open_ports)} açık port, {elapsed:.2f} saniye."
+            f"{len(results)} açık port, {elapsed:.2f} saniye."
         )
 
     return 0

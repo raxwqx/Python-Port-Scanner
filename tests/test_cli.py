@@ -69,3 +69,17 @@ def test_main_writes_output_file(listening_port, tmp_path, capsys):
 
     assert "port,proto,state,service,banner" in target.read_text(encoding="utf-8")
     assert str(target) in capsys.readouterr().err
+
+
+def test_main_udp_scan(udp_echo_port, capsys):
+    assert main(["--udp", "-p", str(udp_echo_port), "127.0.0.1", "-q"]) == 0
+    assert f"Port {udp_echo_port}/udp OPEN" in capsys.readouterr().out
+
+
+def test_main_udp_ignores_banner(udp_echo_port, capsys):
+    code = main(
+        ["--udp", "--banner", "-p", str(udp_echo_port), "127.0.0.1", "-q"]
+    )
+
+    assert code == 0
+    assert "banner" in capsys.readouterr().err.lower()
