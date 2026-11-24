@@ -17,7 +17,7 @@ tarayıcısı. Eğitim, CTF ve kontrollü laboratuvar ortamları için tasarland
 - 📄 **Çıktı biçimleri** — insan okunur metin, JSON, CSV; dosyaya yazma
 - 🎚️ **Günlük seviyeleri** — `-v` ayrıntılı, `-q` sessiz; tanılama stderr'de
 - 📊 **İlerleme göstergesi** — uzun taramalarda canlı yüzde
-- 🧪 **48 birim testi** — gerçek soketler üzerinden, ağ erişimi gerektirmez
+- 🧪 **54 birim testi** — gerçek soketler üzerinden, ağ erişimi gerektirmez
 - 🐳 **Docker imajı** — root olmayan kullanıcı ile çalışır
 
 ## 📋 Gereksinimler
@@ -219,6 +219,14 @@ Katkı kuralları için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın.
 ├── Dockerfile
 └── pyproject.toml
 ```
+
+## 🧭 Bilinen Sınırlamalar
+
+- **Yalnızca IPv4.** Alan adları `socket.gethostbyname` ile IPv4'e çözülür; IPv6 desteği yok.
+- **UDP sonuçları tahmindir.** `open|filtered` kesin bir hüküm değildir; yukarıdaki UDP bölümüne bakın.
+- **Sürüm/işletim sistemi tespiti yok.** Servis adı `/etc/services` tablosundan gelir, banner'dan sürüm çıkarılmaz.
+- **SYN (half-open) taraması yok.** `connect()` kullanıldığı için tarama hedefin bağlantı günlüklerine düşer.
+- **Banner okuma iyimserdir.** Sessiz servisler için sırayla `\r\n` ve HTTP `HEAD` yoklaması denenir; her yoklama bir zaman aşımı kadar sürebilir.
 
 ## ⚠️ Yasal Uyarı
 

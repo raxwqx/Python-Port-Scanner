@@ -202,6 +202,12 @@ def main(argv=None):
             print(f"{name:<8} {count:>3} port")
         return 0
 
+    if args.preset == "udp" and not args.udp:
+        log.warning(
+            "'udp' port listesi seçildi ama --udp verilmedi; "
+            "portlar TCP olarak taranacak."
+        )
+
     if args.udp and args.banner:
         log.warning("UDP taramasında banner okuma desteklenmiyor, yok sayıldı.")
         args.banner = False
