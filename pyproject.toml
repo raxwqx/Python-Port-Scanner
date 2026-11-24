@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "python-port-scanner"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Basit Python TCP port tarayıcısı (eğitim amaçlı)"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -27,6 +27,9 @@ dev = ["pytest>=7"]
 
 [tool.setuptools]
 packages = ["portscan"]
+
+[tool.setuptools.dynamic]
+version = { attr = "portscan.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
