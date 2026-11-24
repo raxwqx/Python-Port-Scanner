@@ -25,6 +25,6 @@ htmlcov/
 *.swp
 .DS_Store
 
-# Tarama çıktıları
-*.json
-*.csv
+# Tarama çıktıları (yalnızca depo kökünde)
+/*.json
+/*.csv

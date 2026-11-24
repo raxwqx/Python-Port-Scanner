@@ -52,3 +52,44 @@ def udp_echo_port():
         stop.set()
         thread.join(timeout=1)
         server.close()
+
+
+@pytest.fixture
+def banner_server():
+    """Her bağlantı için verilen handler'ı çalıştıran geçici TCP sunucusu."""
+    servers = []
+
+    def start(handler):
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("127.0.0.1", 0))
+        server.listen(5)
+        server.settimeout(0.1)
+        port = server.getsockname()[1]
+        stop = threading.Event()
+
+        def loop():
+            while not stop.is_set():
+                try:
+                    connection, _ = server.accept()
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+                with connection:
+                    try:
+                        handler(connection)
+                    except OSError:
+                        pass
+
+        thread = threading.Thread(target=loop, daemon=True)
+        thread.start()
+        servers.append((server, stop, thread))
+        return port
+
+    yield start
+
+    for server, stop, thread in servers:
+        stop.set()
+        thread.join(timeout=1)
+        server.close()
