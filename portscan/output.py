@@ -7,12 +7,12 @@ import json
 FIELDS = ["port", "proto", "state", "service", "banner"]
 
 
-def make_result(port, service=None, banner=None, proto="tcp"):
+def make_result(port, service=None, banner=None, proto="tcp", state="open"):
     """Tek bir açık port için sonuç kaydı üretir."""
     return {
         "port": port,
         "proto": proto,
-        "state": "open",
+        "state": state,
         "service": service,
         "banner": banner,
     }
@@ -23,7 +23,8 @@ def render_text(results):
     lines = []
     for result in results:
         suffix = f"  {result['service']}" if result.get("service") else ""
-        lines.append(f"[+] Port {result['port']}/{result['proto']} OPEN{suffix}")
+        state = str(result.get("state", "open")).upper()
+        lines.append(f"[+] Port {result['port']}/{result['proto']} {state}{suffix}")
         if result.get("banner"):
             lines.append(f"    banner: {result['banner']}")
     return "\n".join(lines)

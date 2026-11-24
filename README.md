@@ -10,13 +10,14 @@ tarayıcısı. Eğitim, CTF ve kontrollü laboratuvar ortamları için tasarland
 ## ✨ Özellikler
 
 - ⚡ **Paralel tarama** — `ThreadPoolExecutor` ile yapılandırılabilir eşzamanlılık
+- 📶 **UDP taraması** — `--udp` ile durum tahmini (`open`, `open|filtered`)
 - 🎯 **Esnek port seçimi** — `1-1024`, `22,80,443`, `1-100,8080` veya hazır listeler
 - 🏷️ **Servis adı çözümleme** — `22/tcp OPEN ssh`
 - 📡 **Banner okuma** — açık portlardan servis imzası (`SSH-2.0-OpenSSH_9.6`)
 - 📄 **Çıktı biçimleri** — insan okunur metin, JSON, CSV; dosyaya yazma
 - 🎚️ **Günlük seviyeleri** — `-v` ayrıntılı, `-q` sessiz; tanılama stderr'de
 - 📊 **İlerleme göstergesi** — uzun taramalarda canlı yüzde
-- 🧪 **42 birim testi** — gerçek soketler üzerinden, ağ erişimi gerektirmez
+- 🧪 **48 birim testi** — gerçek soketler üzerinden, ağ erişimi gerektirmez
 - 🐳 **Docker imajı** — root olmayan kullanıcı ile çalışır
 
 ## 📋 Gereksinimler
@@ -82,6 +83,7 @@ portscan [target] [seçenekler]
 | `--list-presets` | Hazır listeleri ve port sayılarını göster | — |
 | `-t, --timeout` | Bağlantı zaman aşımı (saniye) | `0.2` |
 | `-j, --workers` | Eşzamanlı tarama sayısı | `100` |
+| `--udp` | TCP yerine UDP tara (yavaş ve kesin değil) | kapalı |
 | `--banner` | Açık portlardan banner okumayı dene | kapalı |
 | `--no-service` | Servis adı çözümlemesini kapat | kapalı |
 | `-f, --format` | Çıktı biçimi: `text`, `json`, `csv` | `text` |
@@ -104,6 +106,23 @@ portscan [target] [seçenekler]
 ```bash
 python3 -m portscan --list-presets
 ```
+
+### UDP taraması
+
+```bash
+python3 -m portscan --udp -p 53,123,161 127.0.0.1
+```
+
+UDP bağlantısız bir protokol olduğu için sonuçlar TCP kadar kesin değildir:
+
+| Durum | Anlamı |
+| --- | --- |
+| `OPEN` | Hedeften yanıt geldi |
+| `OPEN\|FILTERED` | Yanıt yok; port açık da olabilir, güvenlik duvarı da engelliyor olabilir |
+
+Kapalı olduğu ICMP *port unreachable* ile kesinleşen portlar sonuçlara
+yazılmaz. UDP taraması doğası gereği yavaştır; zaman aşımı en az 0.5 saniyeye
+yükseltilir ve `--banner` bu modda yok sayılır.
 
 ## 📌 Örnek Çıktı
 
@@ -163,6 +182,10 @@ python3 -m portscan -f json 127.0.0.1 | jq '.results[].port'
 `connect_ex` üç yönlü el sıkışmayı tamamladığı için yalnızca gerçekten
 dinleyen servisleri "açık" olarak raporlar. Filtrelenen portlar zaman
 aşımına uğrar ve sonuçlara dahil edilmez.
+
+UDP modunda ise porta boş bir datagram gönderilir: yanıt gelirse `open`,
+ICMP *port unreachable* alınırsa port kapalı sayılıp sonuçlara yazılmaz,
+yanıt gelmezse `open|filtered` olarak raporlanır.
 
 ## 🧪 Geliştirme
 

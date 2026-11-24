@@ -1,8 +1,17 @@
 """portscan.core için birim testleri."""
 
+import socket
+
 import pytest
 
-from portscan.core import parse_ports, resolve_target, scan_port, scan_ports
+from portscan.core import (
+    parse_ports,
+    resolve_target,
+    scan_port,
+    scan_ports,
+    scan_udp_port,
+    scan_udp_ports,
+)
 
 
 def test_parse_single_port():
@@ -59,3 +68,26 @@ def test_scan_ports_calls_progress_callback(listening_port):
         on_progress=lambda done, total: calls.append((done, total)),
     )
     assert calls == [(1, 1)]
+
+
+def test_scan_udp_port_detects_open(udp_echo_port):
+    assert scan_udp_port("127.0.0.1", udp_echo_port, timeout=1.0) == "open"
+
+
+def test_scan_udp_ports_reports_open(udp_echo_port):
+    assert scan_udp_ports(
+        "127.0.0.1", [udp_echo_port], timeout=1.0, workers=2
+    ) == [(udp_echo_port, "open")]
+
+
+def test_scan_udp_port_without_response_is_ambiguous():
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+
+    # UDP'de yanıtsızlık kesin bir sonuç vermez.
+    assert scan_udp_port("127.0.0.1", port, timeout=0.5) in {
+        "closed",
+        "open|filtered",
+    }

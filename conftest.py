@@ -2,6 +2,7 @@
 
 import socket
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -21,4 +22,33 @@ def listening_port():
     try:
         yield port
     finally:
+        server.close()
+
+
+@pytest.fixture
+def udp_echo_port():
+    """127.0.0.1 üzerinde gelen UDP paketini geri gönderen geçici sunucu."""
+    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server.bind(("127.0.0.1", 0))
+    server.settimeout(0.2)
+    port = server.getsockname()[1]
+    stop = threading.Event()
+
+    def echo():
+        while not stop.is_set():
+            try:
+                data, address = server.recvfrom(1024)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            server.sendto(data or b"pong", address)
+
+    thread = threading.Thread(target=echo, daemon=True)
+    thread.start()
+    try:
+        yield port
+    finally:
+        stop.set()
+        thread.join(timeout=1)
         server.close()

@@ -79,3 +79,53 @@ def scan_ports(target, ports, timeout=0.2, workers=100, on_progress=None):
                 on_progress(done, total)
 
     return sorted(open_ports)
+
+
+def scan_udp_port(target, port, timeout=0.5, payload=b"\x00"):
+    """UDP portuna veri gönderir ve durumunu tahmin eder.
+
+    Dönen değerler:
+      - "open": hedeften yanıt geldi
+      - "closed": ICMP port unreachable alındı
+      - "open|filtered": yanıt yok; UDP'de kesin sonuç vermek mümkün değil
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect((target, port))
+            sock.send(payload)
+            try:
+                sock.recv(1024)
+                return "open"
+            except socket.timeout:
+                return "open|filtered"
+    except ConnectionRefusedError:
+        return "closed"
+    except OSError:
+        return "open|filtered"
+
+
+def scan_udp_ports(target, ports, timeout=0.5, workers=100, on_progress=None):
+    """UDP portlarını paralel tarar.
+
+    "closed" sonuçları elenir; (port, durum) çiftlerinin sıralı listesi döner.
+    """
+    results = []
+    total = len(ports)
+    done = 0
+
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+        futures = {
+            pool.submit(scan_udp_port, target, port, timeout): port for port in ports
+        }
+        for future in as_completed(futures):
+            port = futures[future]
+            state = future.result()
+            if state != "closed":
+                results.append((port, state))
+
+            done += 1
+            if on_progress is not None and (done == total or done % 50 == 0):
+                on_progress(done, total)
+
+    return sorted(results)
