@@ -24,6 +24,14 @@ def test_get_preset_returns_a_copy():
     assert 1 not in get_preset("web")
 
 
+def test_udp_preset_contains_common_services():
+    ports = get_preset("udp")
+
+    assert 53 in ports   # DNS
+    assert 123 in ports  # NTP
+    assert 161 in ports  # SNMP
+
+
 def test_get_preset_unknown_raises():
     with pytest.raises(ValueError):
         get_preset("yok-boyle-bir-liste")

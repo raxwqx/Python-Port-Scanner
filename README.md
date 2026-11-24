@@ -102,6 +102,7 @@ portscan [target] [seçenekler]
 | `db` | 1433, 1521, 3306, 5432, 6379, 9042, 11211, 27017 |
 | `mail` | 25, 110, 143, 465, 587, 993, 995 |
 | `remote` | 22, 23, 3389, 5900, 5985, 5986 |
+| `udp` | 53, 67, 68, 69, 123, 137, 138, 161, 162, 500, 514, 520, 1194, 1900, 4500, 5353, 5355 |
 
 ```bash
 python3 -m portscan --list-presets
@@ -111,6 +112,7 @@ python3 -m portscan --list-presets
 
 ```bash
 python3 -m portscan --udp -p 53,123,161 127.0.0.1
+python3 -m portscan --udp --preset udp 127.0.0.1   # yaygın UDP servisleri
 ```
 
 UDP bağlantısız bir protokol olduğu için sonuçlar TCP kadar kesin değildir:
